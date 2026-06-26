@@ -1,105 +1,93 @@
 # CollabCore
+
 > Intelligent Team Formation, Project Management & Mentorship Platform
 
-**Team:** Pulseframe | **Competition:** CIPHER 2.0 | **Scenario 3:** Student Project Team Formation & Task Allocation
+**Team:** Pulseframe · **Competition:** CIPHER 2.0 · **Scenario 3:** Student Project Team Formation & Task Allocation
 
 ---
 
-## Table of Contents
+## What is CollabCore?
 
-- [Overview](#overview)
-- [Problem Statement](#problem-statement)
-- [Proposed Solution](#proposed-solution)
-- [Core Modules](#core-modules)
-- [Dashboards](#dashboards)
-- [Algorithmic Approach](#algorithmic-approach)
-- [Tech Stack](#tech-stack)
-- [Feasibility & Scalability](#feasibility--scalability)
-- [Future Enhancements](#future-enhancements)
-- [Limitations](#limitations)
+CollabCore is a web platform that automates the full lifecycle of university capstone projects — from team formation and role assignment through task management, mentorship, and performance evaluation. It replaces fragmented spreadsheet and email workflows with a single, data-driven system built for coordinators, students, and mentors.
 
 ---
 
-## Overview
+## The Problem
 
-CollabCore is an online platform for automated management of capstone projects. It covers the entire project lifecycle — from team formation to completion — by unifying manual, fragmented processes into one intelligent, data-driven system.
-
----
-
-## Problem Statement
-
-Capstone projects are a vital part of university education, but managing them at scale is inefficient. Faculty spend significant time coordinating teams via spreadsheets and email, leading to recurring issues:
+Managing capstone projects at scale is painful for faculty. Six recurring issues drive the need for a platform like this:
 
 | # | Problem | Impact |
 |---|---------|--------|
-| 1 | **Skill Mismatch** | Duplicate roles; missing testers, designers, or PMs |
-| 2 | **Unfair Workload Distribution** | Some members overwhelmed, others underperforming |
-| 3 | **Missing Critical Skills** | Teams lack QA, UI/UX, or database expertise |
-| 4 | **Duplicate Project Selection** | Multiple groups choose the same topic, requiring manual intervention |
-| 5 | **Incompatible Schedules** | Part-time work and varied timetables make collaboration difficult |
-| 6 | **Lack of Visibility** | Faculty have no real-time view of progress, contributions, or risks |
-
----
-
-## Proposed Solution
-
-CollabCore automates and streamlines every stage of the capstone project process for three user types:
-
-### Students
-- Personalised dashboard to track assignments and projects
-- Kanban task board, milestone tracker, and team analytics
-- Submit deliverables and receive mentor feedback and grades
-
-### Coordinators
-- Create and evaluate team structures
-- Override system-generated suggestions when needed
-- Access analytics dashboards for program-wide oversight
-
-### Mentors
-- View full project details and student profiles
-- Provide written feedback, assign grades, and raise risk flags
-- Generate progress reports for assigned teams
+| 1 | Skill mismatch | Duplicate roles; missing testers, designers, or PMs |
+| 2 | Unfair workload distribution | Some members overwhelmed, others underperforming |
+| 3 | Missing critical skills | Teams lack QA, UI/UX, or database expertise |
+| 4 | Duplicate project selection | Multiple groups choose the same topic |
+| 5 | Incompatible schedules | Part-time work and varied timetables block collaboration |
+| 6 | Lack of visibility | Faculty have no real-time view of progress or risks |
 
 ---
 
 ## Core Modules
 
-### 1. Student Profiling Module
-Collects technical skills, soft skills, preferred roles, availability, and project interests into structured, normalised profiles stored at registration.
+### 1. Student Profiling
+Collects technical skills, soft skills, preferred roles, availability, and project interests into structured, normalised profiles at registration.
 
 ### 2. Smart Team Formation Engine
 Builds optimal teams across seven steps using skill diversity, desired roles, compatibility scores, availability, and team size constraints.
 
-### 3. Role Assignment Automation Tool
-Maps skills to roles algorithmically:
+### 3. Role Assignment
+Maps student skill sets to one of five core roles algorithmically:
 
-| Skill Set | Assigned Role |
-|-----------|---------------|
-| Leadership & Communication | Project Manager |
-| Programming & Architecture | Software Developer |
-| Visual & Interaction Design | UI/UX Designer |
-| Testing & Quality Assurance | QA Tester |
-| Requirements & Analysis | Business Analyst |
+| Skill Set | Role |
+|-----------|------|
+| Leadership & communication | Project Manager |
+| Programming & architecture | Software Developer |
+| Visual & interaction design | UI/UX Designer |
+| Testing & quality assurance | QA Tester |
+| Requirements & analysis | Business Analyst |
 
-### 4. Project Allocation Intelligence
-Assigns projects using ranking-based matching. Each team-project combination is scored and conflicts are resolved automatically based on team scores.
+### 4. Project Allocation
+Assigns projects using ranking-based matching. Each team–project pair is scored and conflicts are resolved automatically.
 
-**Scoring weights:** Skill Match 60% · Preference 30% · Fairness 10%
+**Scoring weights:** Skill match 60% · Preference 30% · Fairness 10%
 
 ### 5. Intelligent Task Allocation
-Tasks are assigned based on four weighted criteria: skill match, workload, availability, and urgency — tracking the full pipeline from assignment through to completion.
+Assigns tasks based on four weighted criteria — skill match, workload, availability, and urgency — tracking the full pipeline from assignment through to completion.
 
-### 6. Continuous Conflict Detection & Resolution
-The system monitors all active teams and projects in real time, triggering automated resolution workflows and notifying relevant stakeholders when conflicts arise.
+### 6. ML-Powered Team Quality & Task Suitability
 
-### 7. Analytics & Reporting Engine
+**Team quality classification (XGBoost)** — When a team is formed, member profiles are aggregated into a feature vector and passed through a pre-trained XGBoost model. The model evaluates four dimensions:
+
+- Skill diversity — unique skills at intermediate proficiency or above
+- Role coverage — how many of the five core roles are represented
+- Workload balance — standard deviation of task counts across members
+- Skill–role alignment — how closely skills match assigned roles
+
+Teams scoring 0.5 or above are labelled **Good**. Those below are flagged **At Risk** and surfaced immediately on the coordinator's dashboard.
+
+**Task suitability ranking** — Every new task triggers a ranked shortlist of eligible members scored across three factors:
+
+- Member success probability — 50%
+- Skill match bonus — 35%
+- Workload penalty (capped at 0.3) — 15%
+
+Members scoring 0.6 or above receive a **Best Fit** label. Those below appear as **Available**. Coordinators make the final assignment call.
+
+### 7. Continuous Risk Detection
+A rule-enhanced classifier runs on top of the ML model and monitors three engagement signals in real time:
+
+- No commit in over 7 days → +15% risk
+- Each missed milestone → cumulative penalty
+- Average response latency over 48 hours → +10% risk
+
+When risk is detected, the system automatically opens a conflict resolution case visible to both the assigned mentor and the coordinator.
+
+### 8. Analytics & Reporting Engine
 Powers all dashboards with live data including task completion rates, workload distribution maps, skill gap alerts, and risk indicators.
 
 ---
 
 ## Dashboards
-
-CollabCore features two role-specific dashboards sharing a common backend but tailored interfaces:
 
 ### Student Dashboard
 - Kanban task manager
@@ -115,26 +103,32 @@ CollabCore features two role-specific dashboards sharing a common backend but ta
 - Risk/warning flag system
 - Progress report generation
 
+### Coordinator Dashboard
+- Program-wide analytics and oversight
+- Team creation and evaluation tools
+- Override controls for system-generated suggestions
+- At-risk team alerts
+
 ---
 
-## Algorithmic Approach
+## How It Works
 
 ```
-Student Profile Data
+Student profile data
         ↓
-Normalised Skill Vectors
+Normalised skill vectors
         ↓
-Smart Team Formation Engine (7 steps)
+Smart team formation engine (7 steps)
         ↓
-Role Assignment (skill-to-role mapping)
+Role assignment (skill-to-role mapping)
         ↓
-Project Allocation (ranking-based matching)
+Project allocation (ranking-based matching)
         ↓
-Task Assignment (skill + workload + availability + urgency)
+Task assignment (skill + workload + availability + urgency)
         ↓
-Conflict Detection & Auto-Resolution
+ML quality classification + risk detection (continuous)
         ↓
-Mentor Evaluation (4-parameter scoring → performance report cards)
+Mentor evaluation (4-parameter scoring → performance report cards)
 ```
 
 ---
@@ -142,51 +136,44 @@ Mentor Evaluation (4-parameter scoring → performance report cards)
 ## Tech Stack
 
 | Layer | Technology | Rationale |
-|-------|-----------|-----------|
-| **Frontend** | React, Next.js | Server-side rendering, fast SPA, component reuse |
-| **Backend** | Node.js, Spring Boot | Microservice-ready, high concurrency, enterprise-grade |
-| **Database** | MongoDB | Flexible schema for varied student/project profiles; JSON-native; horizontal scaling |
-| **Auth & Security** | Firebase Authentication | Free tier covers student-scale usage; role-based access; GDPR-ready |
+|-------|------------|-----------|
+| Frontend | React, Next.js | Server-side rendering, fast SPA, component reuse |
+| Backend | Node.js, Spring Boot | Microservice-ready, high concurrency, enterprise-grade |
+| Database | MongoDB | Flexible schema for varied profiles; JSON-native; horizontal scaling |
+| Auth & Security | Firebase Authentication | Role-based access; GDPR-ready; free tier covers student-scale usage |
 
 ---
 
 ## Feasibility & Scalability
 
-### Practical Feasibility
-- Uses data already collected during student enrolment — no new setup required
-- Minimal training needed for administrators and students
-- Estimated **70% reduction** in administrative costs vs. email/spreadsheet workflows
-- Faculty can override automated decisions at any stage
+CollabCore is built to be deployable with minimal setup — it uses data already collected during student enrolment and requires no significant training for administrators or students. Estimated administrative cost reduction versus email/spreadsheet workflows is **70%**. Faculty can override automated decisions at any stage.
 
-### Scalability
-
-| Current Scope | Future Scope |
-|---------------|-------------|
+| Current scope | Future scope |
+|---------------|--------------|
 | Hundreds of students per semester | Thousands of students across multiple faculties |
 | Multiple simultaneous projects | Multi-campus deployment via shared cloud |
 | Single faculty/module deployment | Horizontal scaling with containerisation |
-| Relational DB sufficient at this scale | Microservice architecture for independent module scaling |
 
 ---
 
 ## Future Enhancements
 
-- **AI-Based Team Optimisation** — Predict successful team combinations using historical performance data and ML models
-- **Personality Compatibility** — Psychometric analysis to improve collaboration outcomes
-- **Predictive Risk Detection** — Flag struggling teams early via NLP sentiment analysis on activity logs
-- **LMS Integration** — Seamless connection with Moodle, Canvas, and other academic platforms
+- **AI team optimisation** — predict successful combinations using historical performance data
+- **Personality compatibility** — psychometric analysis to improve collaboration outcomes
+- **Predictive risk detection** — NLP sentiment analysis on activity logs to flag struggling teams early
+- **LMS integration** — seamless connection with Moodle, Canvas, and other academic platforms
 
 ---
 
 ## Limitations
 
-- Efficacy relies on the accuracy of self-reported skill data
-- Soft skills (communication, leadership) are difficult to quantify objectively
+- Efficacy depends on the accuracy of self-reported skill data
+- Soft skills such as communication and leadership are difficult to quantify objectively
 - Not all project preference requests may be fulfilled due to availability constraints
 - Faculty approval workflows may introduce delays when overriding system decisions
 
 ---
 
-## Conclusion
+## License
 
-CollabCore provides an intelligent, scalable, and practical solution covering the full capstone project lifecycle — from team formation and role assignment through task management, mentorship, and performance evaluation. By automating manual processes and surfacing real-time insights through purpose-built dashboards, it enables universities to run more effective capstone programs while scaling to support larger student cohorts and additional faculties over time.
+This project was developed for CIPHER 2.0 by Team Pulseframe. See `LICENSE` for details.
