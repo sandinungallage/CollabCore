@@ -74,7 +74,10 @@ export default function TeamDetailsPage() {
   const stats = useMemo(() => {
     const total = tasks.length;
     const completed = tasks.filter((t) => t.status === 'Completed').length;
-    const pendingMilestones = milestones.filter((m) => m.status !== 'approved').length;
+    const pendingMilestones = milestones.filter((m) => {
+      const status = (m.status || '').toLowerCase();
+      return status !== 'approved' && status !== 'submitted' && status !== 'completed';
+    }).length;
     const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, completed, pendingMilestones, progressPercent };
   }, [tasks, milestones]);

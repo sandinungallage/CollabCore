@@ -1,7 +1,14 @@
 import axios from 'axios';
 
+const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5173';
+const apiUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_API_URL : undefined;
+const defaultBaseURL = isLocalHost
+  ? 'http://127.0.0.1:5000/api/v1'
+  : `${baseOrigin}/api/v1`;
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1',
+  baseURL: apiUrl || defaultBaseURL,
   headers: {
     'Content-Type': 'application/json',
   },

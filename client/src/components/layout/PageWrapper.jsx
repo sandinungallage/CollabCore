@@ -19,6 +19,7 @@ const pageTitles = {
   '/mentor/dashboard': 'Dashboard',
   '/mentor/evaluations': 'Evaluations',
   '/mentor/risks': 'Risk Alerts',
+  '/settings': 'Settings',
 };
 
 export default function PageWrapper({ children }) {

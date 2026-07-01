@@ -26,6 +26,7 @@ import MentorDashboardPage from './pages/mentor/DashboardPage';
 import MentorTeamDetailsPage from './pages/mentor/TeamDetailsPage';
 import MentorEvaluationsPage from './pages/mentor/EvaluationsPage';
 import MentorRisksPage from './pages/mentor/RisksPage';
+import SettingsPage from './pages/shared/SettingsPage';
 
 /* Placeholder page component */
 function PlaceholderPage({ name }) {
@@ -79,6 +80,10 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/setup-profile" element={<StudentProfileSetup />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
+
+      <Route element={<ProtectedRoute allowedRoles={['coordinator', 'student', 'mentor']} />}>
+        <Route path="/settings" element={<SettingsPage />} />
+      </Route>
 
       {/* Coordinator Routes */}
       <Route element={<ProtectedRoute allowedRoles={['coordinator']} />}>

@@ -11,6 +11,8 @@ import {
   Target,
   ArrowRight,
   ClipboardList,
+  Sparkles,
+  CalendarClock,
 } from 'lucide-react';
 import { PageWrapper } from '../../components/layout';
 import {
@@ -24,7 +26,7 @@ import {
   Button,
 } from '../../components/common';
 import { useAuth } from '../../context/AuthContext';
-import { formatDate } from '../../utils/helpers';
+import { formatDate, cn } from '../../utils/helpers';
 import * as teamsApi from '../../api/teams';
 import * as tasksApi from '../../api/tasks';
 import * as milestonesApi from '../../api/milestones';
@@ -47,7 +49,7 @@ export default function StudentDashboardPage() {
       // 1. Fetch teams to find the student's team
       const teamsRes = await teamsApi.getTeams();
       const allTeams = teamsRes.data?.data ?? teamsRes.data?.teams ?? teamsRes.data ?? [];
-      
+
       const teamId = user.team?._id ?? user.team;
       const myTeam = teamId
         ? allTeams.find((t) => t._id === teamId)
@@ -97,7 +99,7 @@ export default function StudentDashboardPage() {
   const nextMilestoneDays = useMemo(() => {
     const pendingMilestones = milestones.filter((m) => m.status === 'pending' || !m.status);
     if (pendingMilestones.length === 0) return null;
-    
+
     // Find closest due date
     const sorted = [...pendingMilestones].sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
     const next = sorted[0];
@@ -124,30 +126,59 @@ export default function StudentDashboardPage() {
     return 'Good evening';
   }, []);
 
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }),
+    []
+  );
+
   return (
     <PageWrapper>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-7 max-w-7xl mx-auto">
         {/* Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-blue-600 to-indigo-600 dark:from-indigo-600 dark:via-blue-800 dark:to-slate-800 p-6 lg:p-8 shadow-lg">
-          <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-blue-600 to-indigo-700 dark:from-indigo-700 dark:via-blue-800 dark:to-slate-900 p-7 lg:p-9 shadow-lg shadow-primary/20 dark:shadow-black/30">
+          {/* Decorative layers */}
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute -top-24 -right-16 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-28 left-1/3 h-64 w-64 rounded-full bg-indigo-400/20 blur-3xl" />
+            <div
+              className="absolute inset-0 opacity-[0.06]"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 1px 1px, white 1px, transparent 0)',
+                backgroundSize: '24px 24px',
+              }}
+            />
+          </div>
+
+          <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
             <div>
-              <p className="text-sm font-medium text-blue-100 mb-1">{greeting},</p>
-              <h1 className="text-2xl lg:text-3xl font-bold text-white leading-tight">
-                {user?.fullName ?? 'Student'} 👋
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-100 bg-white/10 border border-white/15 rounded-full px-2.5 py-1 backdrop-blur-sm">
+                  <CalendarClock size={12} />
+                  {todayLabel}
+                </span>
+              </div>
+              <p className="text-sm font-medium text-blue-100/90 mb-1 flex items-center gap-1.5">
+                {greeting}
+                <Sparkles size={14} className="text-blue-200" />
+              </p>
+              <h1 className="text-2xl lg:text-[2.15rem] font-bold text-white leading-tight tracking-tight">
+                {user?.fullName ?? 'Student'}
               </h1>
               {team ? (
-                <p className="mt-1 text-sm text-blue-100 font-medium">
-                  Team: <span className="underline">{team.name}</span>
+                <p className="mt-2 text-sm text-blue-100/95 font-medium flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shrink-0" />
+                  Team <span className="font-semibold text-white">{team.name}</span>
                 </p>
               ) : (
-                <p className="mt-1 text-sm text-blue-100 italic">No team assigned yet</p>
+                <p className="mt-2 text-sm text-blue-100/80 italic">No team assigned yet</p>
               )}
             </div>
             {team && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="bg-white/10 text-white hover:bg-white/20 border-white/10"
+                className="bg-white/10 text-white hover:bg-white/20 border-white/15 backdrop-blur-sm self-start sm:self-auto shrink-0 shadow-sm"
                 onClick={() => navigate('/student/team')}
               >
                 View Team Space
@@ -166,15 +197,23 @@ export default function StudentDashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard label="My Tasks" value={pendingTasks.length} icon={ClipboardList} color="primary" />
-            <StatCard label="Completed Tasks" value={completedTasksCount} icon={CheckSquare} color="success" />
-            <StatCard label="Team Members" value={teamMembersCount} icon={Users} color="info" />
-            <StatCard
-              label="Days to Next Milestone"
-              value={nextMilestoneDays !== null ? nextMilestoneDays : '—'}
-              icon={Calendar}
-              color={nextMilestoneDays !== null && nextMilestoneDays <= 3 ? 'danger' : 'warning'}
-            />
+            <div className="transition-transform duration-200 hover:-translate-y-0.5">
+              <StatCard label="My Tasks" value={pendingTasks.length} icon={ClipboardList} color="primary" />
+            </div>
+            <div className="transition-transform duration-200 hover:-translate-y-0.5">
+              <StatCard label="Completed Tasks" value={completedTasksCount} icon={CheckSquare} color="success" />
+            </div>
+            <div className="transition-transform duration-200 hover:-translate-y-0.5">
+              <StatCard label="Team Members" value={teamMembersCount} icon={Users} color="info" />
+            </div>
+            <div className="transition-transform duration-200 hover:-translate-y-0.5">
+              <StatCard
+                label="Days to Next Milestone"
+                value={nextMilestoneDays !== null ? nextMilestoneDays : '—'}
+                icon={Calendar}
+                color={nextMilestoneDays !== null && nextMilestoneDays <= 3 ? 'danger' : 'warning'}
+              />
+            </div>
           </div>
         )}
 
@@ -195,9 +234,10 @@ export default function StudentDashboardPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* My Pending Tasks */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3.5">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
+                  <span className="h-1 w-4 rounded-full bg-primary dark:bg-dark-primaryAccent" />
                   My Active Tasks
                 </h2>
                 <Button variant="ghost" size="sm" onClick={() => navigate('/student/tasks')}>
@@ -216,26 +256,48 @@ export default function StudentDashboardPage() {
                   />
                 ) : (
                   <div className="divide-y divide-surface-border dark:divide-dark-border">
-                    {pendingTasks.slice(0, 5).map((task) => (
-                      <div
-                        key={task._id}
-                        onClick={() => navigate('/student/tasks')}
-                        className="p-4 flex items-center justify-between hover:bg-surface-bg dark:hover:bg-dark-elevated/20 cursor-pointer transition-colors"
-                      >
-                        <div className="min-w-0 flex-1 pr-4">
-                          <h4 className="text-sm font-semibold text-text-primary dark:text-text-inverted truncate">
-                            {task.title}
-                          </h4>
-                          <p className="text-xs text-text-muted mt-0.5">
-                            Status: <span className="font-medium text-text-secondary dark:text-text-muted">{task.status}</span>
-                            {task.dueDate && ` · Due ${formatDate(task.dueDate, 'short')}`}
-                          </p>
+                    {pendingTasks.slice(0, 5).map((task) => {
+                      const isOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+                      return (
+                        <div
+                          key={task._id}
+                          onClick={() => navigate('/student/tasks')}
+                          className="group p-4 flex items-center gap-3 justify-between hover:bg-surface-bg dark:hover:bg-dark-elevated/20 cursor-pointer transition-colors"
+                        >
+                          <div className="flex items-center gap-3 min-w-0 flex-1 pr-4">
+                            <span
+                              className={cn(
+                                'h-2 w-2 rounded-full shrink-0',
+                                isOverdue ? 'bg-danger' : 'bg-primary/40 dark:bg-dark-primaryAccent/50'
+                              )}
+                            />
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-semibold text-text-primary dark:text-text-inverted truncate group-hover:text-primary dark:group-hover:text-dark-primaryAccent transition-colors">
+                                {task.title}
+                              </h4>
+                              <p className="text-xs text-text-muted mt-0.5 flex items-center gap-1 flex-wrap">
+                                <span className="font-medium text-text-secondary dark:text-text-muted">{task.status}</span>
+                                {task.dueDate && (
+                                  <span className={cn('flex items-center gap-1', isOverdue && 'text-danger font-medium')}>
+                                    · <Clock size={10} className="inline" />
+                                    {isOverdue ? 'Overdue' : 'Due'} {formatDate(task.dueDate, 'short')}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge variant={priorityBadgeVariant(task.priority)}>
+                              {task.priority || 'Medium'}
+                            </Badge>
+                            <ArrowRight
+                              size={14}
+                              className="text-text-muted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all hidden sm:block"
+                            />
+                          </div>
                         </div>
-                        <Badge variant={priorityBadgeVariant(task.priority)}>
-                          {task.priority || 'Medium'}
-                        </Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </Card>
@@ -244,8 +306,9 @@ export default function StudentDashboardPage() {
             {/* Upcoming Milestones & Team Info Side Panel */}
             <div className="space-y-6">
               {/* Upcoming Milestones */}
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+              <div className="space-y-3.5">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
+                  <span className="h-1 w-4 rounded-full bg-amber-400" />
                   Milestones
                 </h2>
                 <Card className="p-4">
@@ -260,32 +323,38 @@ export default function StudentDashboardPage() {
                         const isSubmitted = ms.status === 'submitted';
                         return (
                           <div key={ms._id ?? index} className="flex gap-3 items-start">
-                            <div
-                              className={cn(
-                                'h-2 w-2 rounded-full mt-1.5 shrink-0',
-                                isApproved
-                                  ? 'bg-success'
-                                  : isSubmitted
-                                  ? 'bg-blue-500'
-                                  : 'bg-neutral'
+                            <div className="flex flex-col items-center self-stretch pt-1.5">
+                              <div
+                                className={cn(
+                                  'h-2.5 w-2.5 rounded-full shrink-0 ring-4',
+                                  isApproved
+                                    ? 'bg-success ring-success/15'
+                                    : isSubmitted
+                                    ? 'bg-blue-500 ring-blue-500/15'
+                                    : 'bg-neutral ring-neutral/10'
+                                )}
+                              />
+                              {index < Math.min(milestones.length, 3) - 1 && (
+                                <span className="w-px flex-1 bg-surface-border dark:bg-dark-border mt-1.5" />
                               )}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-semibold text-text-primary dark:text-text-inverted truncate">
-                                {ms.title}
-                              </p>
-                              <p className="text-[10px] text-text-muted mt-0.5">
-                                Due: {formatDate(ms.dueDate, 'short')}
+                            </div>
+                            <div className="min-w-0 flex-1 pb-0.5">
+                              <div className="flex items-start justify-between gap-2">
+                                <p className="text-xs font-semibold text-text-primary dark:text-text-inverted truncate">
+                                  {ms.title}
+                                </p>
+                                <Badge
+                                  variant={isApproved ? 'success' : isSubmitted ? 'info' : 'gray'}
+                                  className="text-[9px] uppercase font-semibold shrink-0"
+                                >
+                                  {ms.status || 'Pending'}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-text-muted mt-0.5 flex items-center gap-1">
+                                <Calendar size={9} />
+                                Due {formatDate(ms.dueDate, 'short')}
                               </p>
                             </div>
-                            <Badge
-                              variant={
-                                isApproved ? 'success' : isSubmitted ? 'info' : 'gray'
-                              }
-                              className="text-[9px] uppercase font-semibold shrink-0"
-                            >
-                              {ms.status || 'Pending'}
-                            </Badge>
                           </div>
                         );
                       })}
@@ -295,20 +364,28 @@ export default function StudentDashboardPage() {
               </div>
 
               {/* Team Members List */}
-              <div className="space-y-3">
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-text-muted">
+              <div className="space-y-3.5">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted flex items-center gap-2">
+                  <span className="h-1 w-4 rounded-full bg-emerald-400" />
                   My Team
                 </h2>
-                <Card className="p-4 space-y-3">
-                  {(team.members || []).map((m) => {
+                <Card className="p-4 space-y-1">
+                  {(team.members || []).map((m, idx) => {
                     const memberInfo = m.userId ?? m;
                     const isSelf = memberInfo._id === user._id;
                     return (
-                      <div key={m._id} className="flex items-center gap-3 justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        key={m._id}
+                        className={cn(
+                          'flex items-center gap-3 justify-between py-2 px-1.5 -mx-1.5 rounded-lg transition-colors',
+                          isSelf && 'bg-primary-light/50 dark:bg-dark-primaryLight/10'
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <Avatar name={memberInfo.name} size="sm" />
                           <p className="text-xs font-semibold text-text-primary dark:text-text-inverted truncate">
-                            {memberInfo.name} {isSelf && <span className="text-[10px] text-primary">(You)</span>}
+                            {memberInfo.name}{' '}
+                            {isSelf && <span className="text-[10px] font-normal text-primary dark:text-dark-primaryAccent">(You)</span>}
                           </p>
                         </div>
                         <Badge variant="gray" className="text-[9px] tracking-wide shrink-0">

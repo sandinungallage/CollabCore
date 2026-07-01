@@ -10,8 +10,15 @@
 
 const axios = require('axios');
 
-const ML_BASE = process.env.ML_SERVICE_URL || 'http://localhost:8000';
+const ML_BASE = process.env.ML_SERVICE_URL || 'http://127.0.0.1:8000';
 const TIMEOUT = 6000;  // 6 seconds
+
+function normalizeMlBaseUrl(url) {
+  if (!url) return 'http://127.0.0.1:8000';
+  return url.replace('localhost', '127.0.0.1');
+}
+
+const ML_SERVICE_BASE = normalizeMlBaseUrl(ML_BASE);
 
 
 // ─── Data Transformation Helpers ─────────────────────────────────────────────
@@ -85,7 +92,7 @@ function formatMembersForML(members) {
 /** @param {string} path  @param {object} body */
 async function mlPost(path, body) {
   try {
-    const res = await axios.post(`${ML_BASE}${path}`, body, { timeout: TIMEOUT });
+    const res = await axios.post(`${ML_SERVICE_BASE}${path}`, body, { timeout: TIMEOUT });
     return res.data;
   } catch (err) {
     const status = err.response?.status ?? 'NO_RESPONSE';
@@ -110,6 +117,9 @@ async function mlPost(path, body) {
  *   team.mlLabel = ml.label;
  */
 async function predictTeamQuality(members, availabilityOverlap = 0.7) {
+  if (!Array.isArray(members) || members.length < 2) {
+    return { score: null, label: 'Unknown', confidence: null };
+  }
   const result = await mlPost('/predict/team-quality', {
     members,
     availability_overlap: availabilityOverlap,
@@ -179,7 +189,7 @@ async function detectTeamRisk(members, availabilityOverlap = 0.7, extraContext =
  */
 async function isMlServiceHealthy() {
   try {
-    const res = await axios.get(`${ML_BASE}/health`, { timeout: 3000 });
+    const res = await axios.get(`${ML_SERVICE_BASE}/health`, { timeout: 3000 });
     return res.data?.models_loaded === true;
   } catch {
     return false;

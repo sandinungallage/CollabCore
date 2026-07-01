@@ -157,6 +157,29 @@ def _team_to_feature_row(members: list[dict],
     return np.array(row, dtype="float32")
 
 
+def _task_skill_match_bonus(student: dict, required: dict[str, int]) -> float:
+    """
+    Compute how well a student matches the required skills for a task.
+
+    Returns a score in the 0-1 range where 1 means all required skills meet
+    or exceed the requested proficiency level.
+    """
+    if not required:
+        return 0.5
+
+    skill_levels = {
+        sk_entry.get("name", "").lower(): int(sk_entry.get("level", 0))
+        for sk_entry in student.get("skills", [])
+    }
+
+    score = 0.0
+    for skill_name, required_level in required.items():
+        member_level = skill_levels.get(skill_name, 0)
+        score += min(member_level / max(required_level, 1), 1.0)
+
+    return round(score / len(required), 4)
+
+
 # ─── 1. Team Quality Prediction ───────────────────────────────────────────────
 
 def predict_team_quality(members: list[dict],
@@ -166,7 +189,8 @@ def predict_team_quality(members: list[dict],
     """
     registry.load()
     row     = _team_to_feature_row(members, availability_overlap, registry.feature_cols)
-    scaled  = registry.scaler.transform([row])
+    row_df  = pd.DataFrame([row], columns=registry.feature_cols)
+    scaled  = registry.scaler.transform(row_df)
     prob    = float(registry.team_quality.predict_proba(scaled)[0][1])
     score   = round(prob * 100, 1)
     label   = "Good" if prob >= 0.5 else "At Risk"
@@ -192,37 +216,45 @@ def predict_task_assignment(students: list[dict],
     registry.load()
 
     rankings = []
-    for student in students:
-        # Build a 1-person "team" to reuse the feature pipeline
-        pseudo_members    = [student]
-        avail_overlap     = float(student.get("availability", 0.7))
-        row               = _team_to_feature_row(pseudo_members, avail_overlap,
-                                                 registry.feature_cols)
-        scaled            = registry.scaler.transform([row])
-        prob              = float(registry.task_assignment.predict_proba(scaled)[0][1])
+    required = {
+        rs["name"].lower(): int(rs.get("minLevel", 3))
+        for rs in task.get("requiredSkills", [])
+        if rs.get("name")
+    }
+    urgency = max(1, min(int(task.get("urgency", 3)), 5))
+    urgency_bonus = (urgency - 1) / 4.0
 
-        # Bonus for skill match to task
-        required = {rs["name"].lower(): rs.get("minLevel", 3)
-                    for rs in task.get("requiredSkills", [])}
-        skill_match_bonus = 0.0
-        for sk_entry in student.get("skills", []):
-            sname = sk_entry.get("name", "").lower()
-            slevel = int(sk_entry.get("level", 0))
-            if sname in required:
-                skill_match_bonus += min(slevel / max(required[sname], 1), 1.0)
-        if required:
-            skill_match_bonus /= len(required)
+    for student in students:
+        # Build a 1-person "team" to reuse the feature pipeline, but do not
+        # rely on that classifier alone for ranking. It was trained on team-level
+        # labels, so the raw probability is only a weak signal here.
+        pseudo_members = [student]
+        avail_overlap   = float(student.get("availability", 0.7))
+        row             = _team_to_feature_row(pseudo_members, avail_overlap, registry.feature_cols)
+        row_df          = pd.DataFrame([row], columns=registry.feature_cols)
+        scaled          = registry.scaler.transform(row_df)
+        prob            = float(registry.task_assignment.predict_proba(scaled)[0][1])
+
+        skill_match_bonus = _task_skill_match_bonus(student, required)
+        availability_bonus = max(0.0, min(avail_overlap, 1.0))
 
         # Workload penalty
         task_count = int(student.get("taskCount", 0))
         workload_penalty = min(task_count / 10.0, 0.3)
 
         final_score = round(
-            0.50 * prob +
-            0.35 * skill_match_bonus -
-            0.15 * workload_penalty,
+            0.18 * prob +
+            0.48 * skill_match_bonus +
+            0.18 * availability_bonus +
+            0.16 * urgency_bonus -
+            0.12 * workload_penalty,
             4
         )
+
+        final_score = max(0.0, min(final_score, 1.0))
+
+        if required:
+            final_score = max(final_score, min(0.95, 0.35 + 0.45 * skill_match_bonus))
 
         rankings.append({
             "studentId":      str(student.get("_id", "")),
@@ -258,7 +290,8 @@ def predict_risk(members: list[dict],
 
     # Build a full feature row (all feature_cols), then slice to risk_features for the model
     full_row      = np.array([flat.get(col, 0.0) for col in registry.feature_cols], dtype="float32")
-    full_scaled   = registry.scaler.transform([full_row])[0]
+    full_row_df   = pd.DataFrame([full_row], columns=registry.feature_cols)
+    full_scaled   = registry.scaler.transform(full_row_df)[0]
     risk_indices  = [registry.feature_cols.index(c) for c in registry.risk_features
                      if c in registry.feature_cols]
     scaled        = full_scaled[risk_indices].reshape(1, -1)

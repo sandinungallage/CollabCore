@@ -21,7 +21,10 @@ router.post(
   [
     body('student').notEmpty().withMessage('Student is required'),
     body('technicalQuality').optional().isFloat({ min: 0, max: 100 }),
+    body('technical').optional().isFloat({ min: 0, max: 100 }),
     body('collaboration').optional().isFloat({ min: 0, max: 100 }),
+    body('communication').optional().isFloat({ min: 0, max: 100 }),
+    body('leadership').optional().isFloat({ min: 0, max: 100 }),
     body('taskCompletion').optional().isFloat({ min: 0, max: 100 }),
     body('innovation').optional().isFloat({ min: 0, max: 100 }),
   ],

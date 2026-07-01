@@ -40,6 +40,18 @@ const evaluationSchema = yup.object().shape({
   feedback: yup.string().required('Written feedback is required').min(10, 'Feedback must be at least 10 characters'),
 });
 
+function getScore(evaluation, modernKey, legacyKeys = []) {
+  const value = evaluation?.[modernKey] ?? evaluation?.scores?.[modernKey];
+  if (value !== undefined && value !== null) return value;
+
+  for (const key of legacyKeys) {
+    const legacyValue = evaluation?.[key] ?? evaluation?.scores?.[key];
+    if (legacyValue !== undefined && legacyValue !== null) return legacyValue;
+  }
+
+  return 0;
+}
+
 export default function EvaluationsPage() {
   const { user } = useAuth();
   const [evaluations, setEvaluations] = useState([]);
@@ -142,11 +154,11 @@ export default function EvaluationsPage() {
     const studId = evaluation.student?._id ?? evaluation.student ?? '';
     reset({
       student: studId,
-      technical: evaluation.scores?.technical ?? evaluation.technical ?? 80,
-      collaboration: evaluation.scores?.collaboration ?? evaluation.collaboration ?? 80,
-      communication: evaluation.scores?.communication ?? evaluation.communication ?? 80,
-      leadership: evaluation.scores?.leadership ?? evaluation.leadership ?? 80,
-      feedback: evaluation.feedback || '',
+      technical: getScore(evaluation, 'technical', ['technicalQuality']) || 80,
+      collaboration: getScore(evaluation, 'collaboration') || 80,
+      communication: getScore(evaluation, 'communication', ['taskCompletion']) || 80,
+      leadership: getScore(evaluation, 'leadership', ['innovation']) || 80,
+      feedback: evaluation.writtenFeedback || evaluation.feedback || '',
     });
     setModalOpen(true);
   };
@@ -160,6 +172,7 @@ export default function EvaluationsPage() {
 
       const payload = {
         student: values.student,
+        technicalQuality: values.technical,
         scores: {
           technical: values.technical,
           collaboration: values.collaboration,
@@ -171,9 +184,13 @@ export default function EvaluationsPage() {
         collaboration: values.collaboration,
         communication: values.communication,
         leadership: values.leadership,
+        taskCompletion: values.communication,
+        innovation: values.leadership,
         overallScore: overall,
         overall: overall,
+        writtenFeedback: values.feedback,
         feedback: values.feedback,
+        status: editingEvaluation?.status || 'Submitted',
       };
 
       if (editingEvaluation) {
@@ -353,11 +370,11 @@ export default function EvaluationsPage() {
                     </div>
 
                     {/* Feedback */}
-                    {ev.feedback && (
+                    {(ev.writtenFeedback || ev.feedback) && (
                       <div className="bg-surface-bg dark:bg-dark-elevated/20 p-3 rounded-lg border border-surface-border dark:border-dark-border flex items-start gap-2.5">
                         <MessageSquare size={13} className="text-text-muted mt-0.5 shrink-0" />
                         <p className="text-xs text-text-secondary dark:text-text-muted leading-relaxed whitespace-pre-wrap">
-                          {ev.feedback}
+                          {ev.writtenFeedback || ev.feedback}
                         </p>
                       </div>
                     )}
@@ -428,7 +445,7 @@ export default function EvaluationsPage() {
               type="range"
               min="0"
               max="100"
-              {...register('technical')}
+              {...register('technical', { valueAsNumber: true })}
               className="w-full h-1.5 bg-surface-border dark:bg-dark-elevated rounded-lg appearance-none cursor-pointer accent-primary dark:accent-dark-primaryAccent"
             />
           </div>
@@ -443,7 +460,7 @@ export default function EvaluationsPage() {
               type="range"
               min="0"
               max="100"
-              {...register('collaboration')}
+              {...register('collaboration', { valueAsNumber: true })}
               className="w-full h-1.5 bg-surface-border dark:bg-dark-elevated rounded-lg appearance-none cursor-pointer accent-primary dark:accent-dark-primaryAccent"
             />
           </div>
@@ -458,7 +475,7 @@ export default function EvaluationsPage() {
               type="range"
               min="0"
               max="100"
-              {...register('communication')}
+              {...register('communication', { valueAsNumber: true })}
               className="w-full h-1.5 bg-surface-border dark:bg-dark-elevated rounded-lg appearance-none cursor-pointer accent-primary dark:accent-dark-primaryAccent"
             />
           </div>
@@ -473,7 +490,7 @@ export default function EvaluationsPage() {
               type="range"
               min="0"
               max="100"
-              {...register('leadership')}
+              {...register('leadership', { valueAsNumber: true })}
               className="w-full h-1.5 bg-surface-border dark:bg-dark-elevated rounded-lg appearance-none cursor-pointer accent-primary dark:accent-dark-primaryAccent"
             />
           </div>

@@ -15,6 +15,8 @@ const allowedOrigins = [
   process.env.CLIENT_URL,
   'http://localhost:3000',
   'http://localhost:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5173',
   'http://localhost:5000'
 ].filter(Boolean);
 
@@ -104,10 +106,12 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
-  connectDB();
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
+    connectDB();
+  });
+}
 
 
 module.exports = app;

@@ -34,6 +34,17 @@ import * as teamsApi from '../../api/teams';
 import * as evaluationsApi from '../../api/evaluations';
 import api from '../../api/axios';
 
+const RISK_TYPE_LABELS = {
+  missing_skills: 'Missing Skills',
+  workload_imbalance: 'Workload Imbalance',
+  low_participation: 'Low Participation',
+  delayed_milestone: 'Delayed Milestone',
+};
+
+function getRiskLabel(conflict) {
+  return RISK_TYPE_LABELS[conflict?.conflictType] ?? conflict?.conflictType ?? 'System Alert';
+}
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 function getGreeting() {
@@ -236,9 +247,10 @@ function EvaluationRow({ evaluation }) {
 
 // ─── Risk alert row ──────────────────────────────────────────────────────────
 
-function RiskAlertRow({ team }) {
-  const risk = getRiskLevel(team);
-  const progress = getTeamProgress(team);
+function RiskAlertRow({ team, conflict }) {
+  const risk = conflict ? (conflict.severity || 'medium').toLowerCase() : getRiskLevel(team);
+  const progress = team ? getTeamProgress(team) : null;
+  const label = conflict ? getRiskLabel(conflict) : getProjectName(team);
 
   return (
     <div className="flex items-center justify-between py-3 px-4 rounded-lg hover:bg-surface-bg dark:hover:bg-dark-elevated transition-colors">
@@ -258,12 +270,14 @@ function RiskAlertRow({ team }) {
             {team.name ?? `Team #${team._id?.slice(-4)}`}
           </p>
           <p className="text-xs text-text-muted dark:text-text-muted truncate">
-            {getProjectName(team)} · {progress}% complete
+            {conflict ? label : `${getProjectName(team)} · ${progress}% complete`}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-3 shrink-0">
-        <RiskBadge level={risk} />
+        <Badge variant={risk === 'high' || risk === 'critical' ? 'danger' : risk === 'medium' ? 'warning' : 'info'}>
+          {conflict ? (conflict.severity || 'Medium') : risk === 'high' ? 'High Risk' : risk === 'medium' ? 'Medium Risk' : 'On Track'}
+        </Badge>
         <Link
           to={`/mentor/teams/${team._id}`}
           className="text-primary dark:text-dark-primaryAccent text-sm font-medium hover:underline hidden sm:inline-flex items-center gap-1"
@@ -285,8 +299,11 @@ export default function MentorDashboardPage() {
   const [evaluations, setEvaluations] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingEvals, setLoadingEvals] = useState(true);
+  const [loadingConflicts, setLoadingConflicts] = useState(true);
   const [errorTeams, setErrorTeams] = useState(null);
   const [errorEvals, setErrorEvals] = useState(null);
+  const [errorConflicts, setErrorConflicts] = useState(null);
+  const [conflicts, setConflicts] = useState([]);
   const [lastRefreshed, setLastRefreshed] = useState(new Date());
 
   const fetchTeams = useCallback(async () => {
@@ -320,15 +337,32 @@ export default function MentorDashboardPage() {
     }
   }, []);
 
+  const fetchConflicts = useCallback(async () => {
+    setLoadingConflicts(true);
+    setErrorConflicts(null);
+    try {
+      const res = await api.get('/conflicts', { params: { status: 'Open', limit: 20 } });
+      const data = res.data?.data ?? res.data?.conflicts ?? res.data ?? [];
+      setConflicts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setErrorConflicts(err.message || 'Failed to load risk alerts.');
+      setConflicts([]);
+    } finally {
+      setLoadingConflicts(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTeams();
     fetchEvaluations();
-  }, [fetchTeams, fetchEvaluations]);
+    fetchConflicts();
+  }, [fetchTeams, fetchEvaluations, fetchConflicts]);
 
   const handleRefresh = () => {
     setLastRefreshed(new Date());
     fetchTeams();
     fetchEvaluations();
+    fetchConflicts();
   };
 
   // ── Derived stats ────────────────────────────────────────────────────────────
@@ -340,6 +374,9 @@ export default function MentorDashboardPage() {
     const r = getRiskLevel(t);
     return r === 'high' || r === 'medium';
   });
+
+  const alertItems = conflicts.length > 0 ? conflicts : riskTeams;
+  const alertCount = conflicts.length > 0 ? conflicts.length : riskTeams.length;
 
   // ─── Sorted risk teams (high first) ─────────────────────────────────────────
   const sortedRiskTeams = [...riskTeams].sort((a, b) => {
@@ -414,9 +451,9 @@ export default function MentorDashboardPage() {
           />
           <StatCard
             label="Risk Flags"
-            value={loadingTeams ? '--' : riskTeams.length}
+            value={loadingTeams || loadingConflicts ? '--' : alertCount}
             icon={AlertTriangle}
-            color={riskTeams.length > 0 ? 'danger' : 'success'}
+            color={alertCount > 0 ? 'danger' : 'success'}
           />
         </div>
 
@@ -550,11 +587,20 @@ export default function MentorDashboardPage() {
             }
             padding={false}
           >
-            {loadingTeams ? (
+            {loadingTeams || loadingConflicts ? (
               <div className="flex items-center justify-center py-12">
                 <Spinner size="md" />
               </div>
-            ) : sortedRiskTeams.length === 0 ? (
+            ) : errorConflicts ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3 px-5">
+                <div className="p-3 rounded-full bg-red-50 dark:bg-red-900/20 text-danger">
+                  <AlertTriangle size={22} />
+                </div>
+                <p className="text-sm text-text-secondary dark:text-text-muted text-center">
+                  {errorConflicts}
+                </p>
+              </div>
+            ) : alertItems.length === 0 ? (
               <EmptyState
                 icon={CheckCircle2}
                 title="No risk flags"
@@ -562,16 +608,20 @@ export default function MentorDashboardPage() {
               />
             ) : (
               <div className="divide-y divide-surface-border dark:divide-dark-border px-1 py-1">
-                {sortedRiskTeams.slice(0, 8).map((team) => (
-                  <RiskAlertRow key={team._id ?? team.id} team={team} />
+                {alertItems.slice(0, 8).map((item) => (
+                  <RiskAlertRow
+                    key={item._id ?? item.id}
+                    team={item.team ?? item}
+                    conflict={item.team ? item : null}
+                  />
                 ))}
-                {sortedRiskTeams.length > 8 && (
+                {alertItems.length > 8 && (
                   <div className="px-4 py-3 text-center">
                     <Link
                       to="/mentor/risks"
                       className="text-sm text-primary dark:text-dark-primaryAccent hover:underline font-medium"
                     >
-                      +{sortedRiskTeams.length - 8} more flagged teams
+                      +{alertItems.length - 8} more flagged items
                     </Link>
                   </div>
                 )}

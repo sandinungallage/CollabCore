@@ -57,6 +57,18 @@ export default function FeedbackPage() {
     return 'danger';
   };
 
+  const getEvaluationScore = (evaluation, modernKey, legacyKeys = []) => {
+    const modernValue = evaluation?.[modernKey] ?? evaluation?.scores?.[modernKey];
+    if (modernValue !== undefined && modernValue !== null) return modernValue;
+
+    for (const key of legacyKeys) {
+      const legacyValue = evaluation?.[key] ?? evaluation?.scores?.[key];
+      if (legacyValue !== undefined && legacyValue !== null) return legacyValue;
+    }
+
+    return 0;
+  };
+
   // Calculations for Summary
   const summaryStats = useMemo(() => {
     if (evaluations.length === 0) return null;
@@ -64,10 +76,10 @@ export default function FeedbackPage() {
     const count = evaluations.length;
     const totals = evaluations.reduce(
       (acc, curr) => {
-        acc.technical += curr.scores?.technical ?? curr.technical ?? 0;
+        acc.technical += getEvaluationScore(curr, 'technical', ['technicalQuality']);
         acc.collaboration += curr.scores?.collaboration ?? curr.collaboration ?? 0;
-        acc.communication += curr.scores?.communication ?? curr.communication ?? 0;
-        acc.leadership += curr.scores?.leadership ?? curr.leadership ?? 0;
+        acc.communication += getEvaluationScore(curr, 'communication', ['taskCompletion']);
+        acc.leadership += getEvaluationScore(curr, 'leadership', ['innovation']);
         acc.overall += curr.overallScore ?? curr.overall ?? 0;
         return acc;
       },
@@ -204,11 +216,12 @@ export default function FeedbackPage() {
 
               {evaluations.map((ev, index) => {
                 const overall = ev.overallScore ?? ev.overall ?? 0;
-                const tech = ev.scores?.technical ?? ev.technical ?? 0;
+                const tech = getEvaluationScore(ev, 'technical', ['technicalQuality']);
                 const collab = ev.scores?.collaboration ?? ev.collaboration ?? 0;
-                const comm = ev.scores?.communication ?? ev.communication ?? 0;
-                const lead = ev.scores?.leadership ?? ev.leadership ?? 0;
+                const comm = getEvaluationScore(ev, 'communication', ['taskCompletion']);
+                const lead = getEvaluationScore(ev, 'leadership', ['innovation']);
                 const mentor = ev.mentor?.fullName ?? ev.mentorId?.fullName ?? 'Mentor';
+                const feedbackText = ev.writtenFeedback || ev.feedback || '';
 
                 return (
                   <Card key={ev._id ?? index} className="p-5 flex flex-col md:flex-row gap-6 hover:shadow-sm transition-shadow">
@@ -269,14 +282,14 @@ export default function FeedbackPage() {
                       </div>
 
                       {/* Text Feedback */}
-                      {ev.feedback && (
+                      {feedbackText && (
                         <div className="bg-surface-bg dark:bg-dark-elevated/20 p-3 rounded-lg border border-surface-border dark:border-dark-border">
                           <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1 flex items-center gap-1">
                             <MessageSquare size={10} />
                             Mentor Feedback
                           </h4>
                           <p className="text-xs text-text-secondary dark:text-text-muted leading-relaxed whitespace-pre-wrap">
-                            {ev.feedback}
+                            {feedbackText}
                           </p>
                         </div>
                       )}

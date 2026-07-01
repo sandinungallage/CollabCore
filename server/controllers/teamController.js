@@ -1,7 +1,24 @@
 const { body, validationResult } = require('express-validator');
-const { Team, User, Task, Notification, TeamInvite } = require('../models');
+const { Team, User, Task, Milestone, Notification, TeamInvite } = require('../models');
 const { runTeamFormation, scoreGroup } = require('../services/TeamFormationEngine');
 const { predictTeamQuality, formatMembersForML } = require('../utils/mlClient');
+
+function getTeamProgressFromTasks(tasks) {
+  const total = tasks.length;
+  if (total === 0) return 0;
+
+  const completed = tasks.filter((task) => task.status === 'Completed').length;
+  return Math.round((completed / total) * 100);
+}
+
+function getRiskLevelFromProgress(progress, existingRiskLevel, overdueMilestones = 0) {
+  const normalizedRisk = existingRiskLevel?.toLowerCase?.() ?? 'unknown';
+  if (normalizedRisk === 'high' || normalizedRisk === 'medium') return normalizedRisk;
+  if (overdueMilestones > 0) return overdueMilestones > 1 ? 'high' : 'medium';
+  if (progress < 20) return 'high';
+  if (progress < 45) return 'medium';
+  return 'low';
+}
 
 const handleValidation = (req, res) => {
   const errors = validationResult(req);
@@ -67,13 +84,64 @@ const getTeams = async (req, res, next) => {
       Team.countDocuments(filter),
     ]);
 
+    const teamIds = teams.map((team) => team._id);
+    const [tasks, milestones] = await Promise.all([
+      Task.find({ team: { $in: teamIds } }).select('team status updatedAt createdAt'),
+      Milestone.find({ team: { $in: teamIds } }).select('team status dueDate updatedAt'),
+    ]);
+
+    const tasksByTeam = new Map();
+    for (const task of tasks) {
+      const teamKey = task.team.toString();
+      if (!tasksByTeam.has(teamKey)) tasksByTeam.set(teamKey, []);
+      tasksByTeam.get(teamKey).push(task);
+    }
+
+    const milestonesByTeam = new Map();
+    for (const milestone of milestones) {
+      const teamKey = milestone.team.toString();
+      if (!milestonesByTeam.has(teamKey)) milestonesByTeam.set(teamKey, []);
+      milestonesByTeam.get(teamKey).push(milestone);
+    }
+
+    const enrichedTeams = teams.map((team) => {
+      const teamKey = team._id.toString();
+      const teamTasks = tasksByTeam.get(teamKey) ?? [];
+      const teamMilestones = milestonesByTeam.get(teamKey) ?? [];
+      const progress = getTeamProgressFromTasks(teamTasks);
+      const overdueMilestones = teamMilestones.filter((milestone) => milestone.status === 'Overdue').length;
+      const riskLevel = getRiskLevelFromProgress(progress, team.riskLevel, overdueMilestones);
+      const riskFlags = [];
+
+      if (teamTasks.length === 0) {
+        riskFlags.push('No tasks created yet');
+      } else if (progress < 45) {
+        riskFlags.push('Low completion rate');
+      }
+
+      if (overdueMilestones > 0) {
+        riskFlags.push(`${overdueMilestones} overdue milestone${overdueMilestones === 1 ? '' : 's'}`);
+      }
+
+      return {
+        ...team.toObject(),
+        progress,
+        overallProgress: progress,
+        completionRate: progress,
+        progressPercentage: progress,
+        riskLevel: team.riskLevel && team.riskLevel !== 'Unknown' ? team.riskLevel : riskLevel,
+        riskScore: team.riskScore ?? Math.max(0, 100 - progress),
+        riskFlags: team.riskFlags?.length ? team.riskFlags : riskFlags,
+      };
+    });
+
     res.status(200).json({
       success: true,
-      count: teams.length,
+      count: enrichedTeams.length,
       total,
       page: pageNum,
       pages: Math.ceil(total / limitNum),
-      data: teams,
+      data: enrichedTeams,
     });
   } catch (error) {
     next(error);

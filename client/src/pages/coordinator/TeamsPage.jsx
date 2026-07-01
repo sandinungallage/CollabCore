@@ -25,10 +25,30 @@ import {
   Card,
   EmptyState,
   Modal,
+  ProgressBar,
   SkeletonCard,
   StatCard,
 } from '../../components/common';
 import { cn } from '../../utils/helpers';
+
+function getTeamProgress(team) {
+  return (
+    team.progress ??
+    team.overallProgress ??
+    team.completionRate ??
+    team.progressPercentage ??
+    0
+  );
+}
+
+function getRiskLevel(team) {
+  const risk = team.riskLevel ?? team.risk;
+  if (risk) return String(risk).toLowerCase();
+  const progress = getTeamProgress(team);
+  if (progress < 20) return 'high';
+  if (progress < 45) return 'medium';
+  return 'low';
+}
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState([]);
@@ -342,6 +362,9 @@ export default function TeamsPage() {
               const project = team.projectName ?? team.project?.title ?? team.project?.name ?? 'Unassigned';
               const isAllocated = !!team.project;
               const isProposed = team.status === 'Proposed';
+              const progress = getTeamProgress(team);
+              const risk = getRiskLevel(team);
+              const riskFlags = Array.isArray(team.riskFlags) ? team.riskFlags : [];
 
               return (
                 <div
@@ -371,6 +394,27 @@ export default function TeamsPage() {
                     <p className="text-xs text-text-muted dark:text-text-muted mb-4 truncate">
                       Project: <span className="font-medium text-text-secondary dark:text-text-muted">{project}</span>
                     </p>
+
+                    <div className="mb-4 space-y-1.5">
+                      <div className="flex items-center justify-between text-[11px] text-text-muted">
+                        <span>Overall Progress</span>
+                        <span className={cn(risk === 'high' ? 'text-danger' : risk === 'medium' ? 'text-warning' : 'text-success', 'font-semibold')}>
+                          {progress}%
+                        </span>
+                      </div>
+                      <ProgressBar value={progress} />
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <Badge variant={risk === 'high' ? 'danger' : risk === 'medium' ? 'warning' : 'success'}>
+                        {risk === 'high' ? 'High Risk' : risk === 'medium' ? 'Medium Risk' : 'On Track'}
+                      </Badge>
+                      {riskFlags.slice(0, 2).map((flag) => (
+                        <Badge key={flag} variant="gray" className="text-[10px]">
+                          {flag}
+                        </Badge>
+                      ))}
+                    </div>
 
                     {/* Member Avatars */}
                     <div className="flex items-center -space-x-2 mb-4 overflow-hidden">

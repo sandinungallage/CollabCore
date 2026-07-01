@@ -48,10 +48,13 @@ exports.getEvaluations = async (req, res, next) => {
 exports.createEvaluation = async (req, res, next) => {
   try {
     const {
-      student, milestone, team, technicalQuality, collaboration,
-      taskCompletion, innovation, writtenFeedback, strengthTags,
+      student, milestone, team, technicalQuality, technical, collaboration,
+      communication, leadership, taskCompletion, innovation, writtenFeedback, feedback, strengthTags,
       improvementTags, status, mark,
     } = req.body;
+
+    const finalStatus = status || 'Submitted';
+    const finalFeedback = writtenFeedback ?? feedback ?? '';
 
     const evaluation = await Evaluation.create({
       student,
@@ -59,23 +62,26 @@ exports.createEvaluation = async (req, res, next) => {
       milestone,
       team,
       technicalQuality,
+      technical,
       collaboration,
+      communication,
+      leadership,
       taskCompletion,
       innovation,
-      writtenFeedback,
+      writtenFeedback: finalFeedback,
       strengthTags,
       improvementTags,
-      status: status || 'Draft',
+      status: finalStatus,
       mark,
     });
 
     // If submitted, notify student and coordinators
-    if (status === 'Submitted') {
+    if (finalStatus === 'Submitted') {
       await Notification.create({
         recipient: student,
-        type: 'evaluation',
-        title: 'New Evaluation Received',
-        body: `You have received a new evaluation from ${req.user.fullName}.`,
+        type: 'feedback',
+        title: 'New Feedback Received',
+        body: `You have received feedback from ${req.user.fullName}.`,
         link: '/student/feedback',
       });
 
@@ -84,7 +90,7 @@ exports.createEvaluation = async (req, res, next) => {
         coordinators.map(coord =>
           Notification.create({
             recipient: coord._id,
-            type: 'evaluation',
+            type: 'feedback',
             title: 'Evaluation Submitted',
             body: `${req.user.fullName} submitted an evaluation for a student.`,
             link: '/coordinator/students',
@@ -173,13 +179,17 @@ exports.updateEvaluation = async (req, res, next) => {
     }
 
     const allowedUpdates = [
-      'technicalQuality', 'collaboration', 'taskCompletion', 'innovation',
-      'writtenFeedback', 'strengthTags', 'improvementTags', 'status', 'mark',
+      'technicalQuality', 'technical', 'collaboration', 'communication', 'leadership', 'taskCompletion', 'innovation',
+      'writtenFeedback', 'feedback', 'strengthTags', 'improvementTags', 'status', 'mark',
     ];
 
     allowedUpdates.forEach(field => {
       if (req.body[field] !== undefined) evaluation[field] = req.body[field];
     });
+
+    if (req.body.feedback !== undefined && req.body.writtenFeedback === undefined) {
+      evaluation.writtenFeedback = req.body.feedback;
+    }
 
     await evaluation.save();
 
@@ -187,9 +197,9 @@ exports.updateEvaluation = async (req, res, next) => {
     if (req.body.status === 'Submitted') {
       await Notification.create({
         recipient: evaluation.student,
-        type: 'evaluation',
-        title: 'New Evaluation Received',
-        body: `You have received a new evaluation from ${req.user.fullName}.`,
+        type: 'feedback',
+        title: 'New Feedback Received',
+        body: `You have received feedback from ${req.user.fullName}.`,
         link: '/student/feedback',
       });
     }

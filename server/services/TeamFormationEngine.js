@@ -172,31 +172,29 @@ async function runTeamFormation({ minSize = 3, maxSize = 5, weights, coordinator
   // 2. Shuffle students
   const shuffled = shuffle(students);
 
-  // 3. Group into chunks of minSize-maxSize
+  // 3. Group students into max-size chunks, then keep any undersized tail unassigned.
   const groups = [];
-  let i = 0;
-  while (i < shuffled.length) {
-    const remaining = shuffled.length - i;
-    if (remaining <= maxSize) {
-      // Put all remaining into one group if they meet min size
-      if (remaining >= minSize) {
-        groups.push(shuffled.slice(i));
-      } else if (groups.length > 0) {
-        // Distribute remaining to existing groups
-        for (let j = 0; j < remaining; j++) {
-          const targetGroup = groups[j % groups.length];
-          if (targetGroup.length < maxSize) {
-            targetGroup.push(shuffled[i + j]);
-          }
-        }
-      } else {
-        // Not enough for min size and no existing groups — create anyway
-        groups.push(shuffled.slice(i));
-      }
-      break;
-    }
+  const leftoverStudents = [];
+
+  for (let i = 0; i < shuffled.length; i += maxSize) {
     groups.push(shuffled.slice(i, i + maxSize));
-    i += maxSize;
+  }
+
+  const lastGroup = groups[groups.length - 1];
+  if (lastGroup && lastGroup.length < minSize) {
+    if (groups.length === 1) {
+      leftoverStudents.push(...lastGroup);
+      groups.pop();
+    } else {
+      const previousGroup = groups[groups.length - 2];
+      if (previousGroup.length + lastGroup.length <= maxSize) {
+        previousGroup.push(...lastGroup);
+        groups.pop();
+      } else {
+        leftoverStudents.push(...lastGroup);
+        groups.pop();
+      }
+    }
   }
 
   // 4. Score and create teams
@@ -251,6 +249,14 @@ async function runTeamFormation({ minSize = 3, maxSize = 5, weights, coordinator
   return {
     teamsCreated: createdTeams.length,
     teams: createdTeams,
+    unassignedStudents: leftoverStudents.map((student) => ({
+      _id: student._id,
+      fullName: student.fullName,
+      email: student.email,
+    })),
+    message: leftoverStudents.length > 0
+      ? `${createdTeams.length} team(s) created. ${leftoverStudents.length} student(s) were left unassigned because there were not enough students to form another valid team.`
+      : `${createdTeams.length} team(s) created successfully.`,
   };
 }
 

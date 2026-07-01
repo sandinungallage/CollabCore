@@ -18,6 +18,7 @@ import os
 import json
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -32,7 +33,8 @@ from model.predict import (
     predict_risk,
 )
 
-SAVE_DIR = "model/saved"
+BASE_DIR = Path(__file__).resolve().parent
+SAVE_DIR = BASE_DIR / "model" / "saved"
 START_TIME = time.time()
 
 
@@ -59,8 +61,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000",
-                   os.getenv("FRONTEND_URL", "*")],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        *([os.getenv("FRONTEND_URL")] if os.getenv("FRONTEND_URL") else []),
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -142,10 +149,10 @@ def health():
 @app.get("/models/info")
 def models_info():
     """Return training metrics for all models."""
-    metrics_path = f"{SAVE_DIR}/metrics_report.json"
-    if not os.path.exists(metrics_path):
+    metrics_path = SAVE_DIR / "metrics_report.json"
+    if not metrics_path.exists():
         raise HTTPException(status_code=404, detail="metrics_report.json not found. Train models first.")
-    with open(metrics_path) as f:
+    with metrics_path.open() as f:
         return json.load(f)
 
 
